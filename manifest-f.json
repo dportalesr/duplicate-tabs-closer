@@ -11,7 +11,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "jid0-RvYT2rGWfM8q5yWxIxAHYAeo5Qg@jetpack",
+      "id": "duplicate-tabs-closer@dportalesr",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
         "required": ["none"],
