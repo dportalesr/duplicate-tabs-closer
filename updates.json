@@ -1,0 +1,12 @@
+{
+  "addons": {
+    "duplicate-tabs-closer@dportalesr": {
+      "updates": [
+        {
+          "version": "4.2.9.1",
+          "update_link": "https://github.com/dportalesr/duplicate-tabs-closer/releases/download/v4.2.9.1/duplicate-tabs-closer-4.2.9.1.xpi"
+        }
+      ]
+    }
+  }
+}
