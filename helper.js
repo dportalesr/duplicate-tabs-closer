@@ -126,7 +126,22 @@ const updateTab = (tabId, updateProperties) => new Promise((resolve, reject) => 
 
 const activateWindow = (windowId) => updateWindow(windowId, { focused: true });
 
-const activateTab = (tabId) => updateTab(tabId, { active: true });
+// Firefox only: tabs hidden by another extension (e.g. Sidebery inactive panels) can't be activated until shown.
+const showTabIfHidden = async (tabId) => {
+    const tab = await getTab(tabId, true);
+    if (!tab || !tab.hidden) return;
+    try {
+        await browser.tabs.show(tabId);
+    }
+    catch (ex) {
+        console.error("showTabIfHidden error:", ex.message);
+    }
+};
+
+const activateTab = async (tabId) => {
+    await showTabIfHidden(tabId);
+    return updateTab(tabId, { active: true });
+};
 
 // eslint-disable-next-line no-unused-vars
 const focusTab = (tabId, windowId) => Promise.all([activateTab(tabId), activateWindow(windowId)]);
