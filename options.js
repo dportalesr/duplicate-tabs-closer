@@ -23,7 +23,7 @@ const defaultOptions = {
         value: true
     },
     keepActiveTab: {
-        value: true
+        value: false
     },
     scope: {
         value: "C"
