@@ -7,3 +7,12 @@ manifest.json
 
 ### VisualStudioCode ###
 .vscode/*
+
+### Claude Code ###
+.claude/
+
+### Node ###
+node_modules/
+
+# Test logs
+*.log

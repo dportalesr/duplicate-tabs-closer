@@ -8,8 +8,9 @@ let lastNbRows = 0;
 let monitoringPaused = false;
 
 const initialize = async () => {
-  const [,, sessionData] = await Promise.all([setPanelOptions(), saveActiveWindowId(), chrome.storage.session.get('monitoringPaused')]);
+  const [, windowId, sessionData] = await Promise.all([setPanelOptions(), getActiveWindowId(), chrome.storage.session.get("monitoringPaused")]);
   monitoringPaused = sessionData.monitoringPaused || false;
+  activeWindowId = windowId;
   requestGetDuplicateTabs();
   localizePopup(document.documentElement);
   applyPausedState(monitoringPaused);
@@ -17,24 +18,20 @@ const initialize = async () => {
 
 const applyPausedState = (paused) => {
   monitoringPaused = paused;
-  const sel = document.getElementById("onDuplicateTabDetected");
-  if (sel) sel.disabled = paused;
-  const btn = document.getElementById("pauseMonitorBtn");
-  if (!btn) return;
-  const icon = btn.querySelector("span");
-  btn.classList.toggle("paused", paused);
-  if (paused) {
-    icon.className = "fa-solid fa-play fa-lg";
-    btn.setAttribute("aria-label", chrome.i18n.getMessage("resumeMonitoring"));
-    btn.setAttribute("title", chrome.i18n.getMessage("resumeMonitoring"));
-  } else {
-    icon.className = "fa-solid fa-pause fa-lg";
-    btn.setAttribute("aria-label", chrome.i18n.getMessage("pauseMonitoring"));
-    btn.setAttribute("title", chrome.i18n.getMessage("pauseMonitoring"));
-  }
+  applyPausedStateUI(paused);
 };
 
-// eslint-disable-next-line max-lines-per-function
+const updateTitleMatchModeDependents = (value) => {
+  const showTitleDependents = value === "T";
+  const thresh = document.getElementById("titleSimilarityThreshold");
+  if (thresh) thresh.disabled = !showTitleDependents;
+  const threshGroup = document.getElementById("titleSimilarityThresholdGroup");
+  if (threshGroup) threshGroup.classList.toggle("hidden", !showTitleDependents);
+  const titleRulesGroup = document.getElementById("titleRegexRulesGroup");
+  if (titleRulesGroup) titleRulesGroup.classList.toggle("hidden", !showTitleDependents);
+};
+
+ 
 const loadPopupEvents = () => {
 
   /* Save checkbox settings */
@@ -43,27 +40,25 @@ const loadPopupEvents = () => {
       saveOption(this.id, this.checked, false);
       return;
     }
-    if (this.id === "compareWithTitle") {
-      const thresh = document.getElementById("titleSimilarityThreshold");
-      if (thresh) thresh.disabled = !this.checked;
-    }
-    else if (this.id === "ignorePathPart") updateIgnorePathPartDependents(this.checked);
-    const refresh = this.className.includes("checkbox-filter")
-      || this.id === "keepTabWithHttps"
-      || this.id === "keepPinnedTab"
-      || this.id === "prioritizeActiveWindow"
-      || this.id === "skipBlankTabs";
+    if (this.id === "ignorePathPart") updateIgnorePathPartDependents(this.checked);
+    const refresh = this.className.includes("checkbox-filter") ||
+      this.id === "keepTabWithHttps" ||
+      this.id === "keepPinnedTab" ||
+      this.id === "prioritizeActiveWindow" ||
+      this.id === "skipBlankTabs" ||
+      this.id === "keepActiveTab";
     saveOption(this.id, this.checked, refresh);
   }));
 
   /* Save combobox settings */
   getElements(".list-group select").forEach(el => el.addEventListener("change", function (event) {
     event.stopPropagation();
-    const refresh = this.id === "scope" || this.id === "keepTabBasedOnAge";
+    const refresh = this.id === "scope" || this.id === "keepTabBasedOnAge" || this.id === "titleMatchMode";
     saveOption(this.id, this.value, refresh);
     if (this.id === "onDuplicateTabDetected") changeAutoCloseOptionState(this.value, true);
     else if (this.id === "theme") applyTheme(this.value);
     else if (this.id === "scope") updatePrioritizeActiveWindowState(this.value);
+    else if (this.id === "titleMatchMode") updateTitleMatchModeDependents(this.value);
   }));
 
   /* Save badge color settings */
@@ -74,7 +69,8 @@ const loadPopupEvents = () => {
   /* Save title similarity threshold */
   const threshEl = getElement(".list-group #titleSimilarityThreshold");
   if (threshEl) threshEl.addEventListener("change", function () {
-    const val = Math.min(100, Math.max(1, parseInt(this.value) || 100));
+    const parsed = parseInt(this.value, 10);
+    const val = Math.min(100, Math.max(1, isNaN(parsed) ? 100 : parsed));
     this.value = val;
     saveOption("titleSimilarityThreshold", val, true);
   });
@@ -85,15 +81,10 @@ const loadPopupEvents = () => {
     const whiteList = cleanUpWhiteList(this.value);
     setWhiteList(whiteList);
     saveOption(this.id, whiteList, true);
+    updateFileAccessWarning();
   });
 
   /* Save URL/title pattern rules */
-  const applyLineHighlight = (textarea) => {
-    const { top, bottom } = getHighlightBounds(textarea);
-    const s = textarea.scrollTop;
-    textarea.style.backgroundImage = `linear-gradient(transparent ${top - s}px, rgba(0, 0, 0, 0.075) ${top - s}px, rgba(0, 0, 0, 0.075) ${bottom - s}px, transparent ${bottom - s}px)`;
-  };
-
   ["urlRegexRules", "titleRegexRules"].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -102,56 +93,26 @@ const loadPopupEvents = () => {
       this.value = cleaned;
       saveOption(this.id, cleaned, true);
     });
-    ["keyup", "click", "select", "focus", "scroll"].forEach(ev =>
-      el.addEventListener(ev, function () { applyLineHighlight(this); })
-    );
-    el.addEventListener("blur", function () { this.style.backgroundImage = ""; });
+    ["keyup", "click", "select", "focus", "scroll"].forEach(ev => el.addEventListener(ev, function () {
+      applyLineHighlight(this);
+    }));
+    el.addEventListener("blur", function () {
+      this.style.backgroundImage = "";
+    });
   });
 
   if (whiteListEl) {
-    ["keyup", "click", "select", "focus", "scroll"].forEach(ev =>
-      whiteListEl.addEventListener(ev, function () { applyLineHighlight(this); })
-    );
-    whiteListEl.addEventListener("blur", function () { this.style.backgroundImage = ""; });
+    ["keyup", "click", "select", "focus", "scroll"].forEach(ev => whiteListEl.addEventListener(ev, function () {
+      applyLineHighlight(this);
+    }));
+    whiteListEl.addEventListener("blur", function () {
+      this.style.backgroundImage = "";
+    });
   }
 
   /* Active selected tab (delegated) */
   const table = document.getElementById("duplicateTabsTable");
-  if (table) {
-    table.addEventListener("click", function (e) {
-      const groupCloseBtn = e.target.closest(".btn-group-close");
-      if (groupCloseBtn) {
-        e.stopPropagation();
-        const headerRow = groupCloseBtn.closest(".tr-group-header");
-        headerRow.dataset.groupTabIds.split(",").map(Number).forEach(id => removeTab(id));
-        return;
-      }
-      const headerRow = e.target.closest(".tr-group-header");
-      if (headerRow) {
-        const isCollapsed = headerRow.classList.toggle("collapsed");
-        let row = headerRow.nextElementSibling;
-        while (row && row.classList.contains("group-row")) {
-          row.classList.toggle("group-collapsed", isCollapsed);
-          row = row.nextElementSibling;
-        }
-        resizeDuplicateTabsPanel(false);
-        return;
-      }
-      const titleCell = e.target.closest(".td-tab-title");
-      if (titleCell) {
-        const row = titleCell.parentElement;
-        const tabId = parseInt(row.getAttribute("tabId"), 10);
-        const windowId = parseInt(row.getAttribute("windowId"), 10);
-        focusTab(tabId, windowId);
-      }
-      const closeCell = e.target.closest(".td-close-button");
-      if (closeCell) {
-        const row = closeCell.parentElement;
-        const tabId = parseInt(row.getAttribute("tabId"), 10);
-        removeTab(tabId);
-      }
-    });
-  }
+  if (table) registerDuplicateTableClickHandler(table, resizeDuplicateTabsPanel);
 
   /* Pause/resume monitoring */
   const pauseBtn = document.getElementById("pauseMonitorBtn");
@@ -161,15 +122,13 @@ const loadPopupEvents = () => {
     });
   });
 
-  chrome.storage.session.onChanged.addListener((changes) => {
-    if ("monitoringPaused" in changes) applyPausedState(changes.monitoringPaused.newValue || false);
-  });
+  registerPauseListener(applyPausedState);
 
   /* Close all */
   const closeBtn = document.getElementById("closeDuplicateTabsBtn");
   if (closeBtn) closeBtn.addEventListener("click", function () {
     if (!this.classList.contains("disabled")) {
-      const skipWhitelisted = document.getElementById("hideWhitelistedTabsBtn")?.classList.contains("active") ?? false;
+      const skipWhitelisted = true;
       requestCloseDuplicateTabs(skipWhitelisted);
     }
   });
@@ -206,6 +165,14 @@ const setWhiteList = (whiteList) => {
   if (el) el.value = whiteList;
 };
 
+const updateFileAccessWarning = () => {
+  const el = document.getElementById("fileAccessWarning");
+  if (!el) return;
+  const whiteList = document.getElementById("whiteList")?.value ?? "";
+  const hasFileEntry = whiteList.split("\n").some(line => line.trim().startsWith("file://"));
+  el.classList.toggle("hidden", !hasFileEntry);
+};
+
 const cleanUpWhiteList = (whiteList) => {
   const whiteListCleaned = new Set();
   const whiteListLines = whiteList.split("\n");
@@ -214,12 +181,6 @@ const cleanUpWhiteList = (whiteList) => {
     if (whiteListLine.length !== 0) whiteListCleaned.add(whiteListLine);
   }
   return Array.from(whiteListCleaned).join("\n");
-};
-
-/* Show/Hide the AutoClose option */
-const changeAutoCloseOptionState = (state, resize) => {
-  document.getElementById("onRemainingTabGroup").classList.toggle("hidden", state !== "A");
-  if (resize) resizeDuplicateTabsPanel();
 };
 
 const setDuplicateTabsTable = (duplicateTabs) => {
@@ -257,15 +218,7 @@ const setDuplicateTabsTable = (duplicateTabs) => {
         }
       });
     }
-    closeBtn.classList.toggle("disabled", false);
-    closeBtn.setAttribute("aria-disabled", "false");
-    closeBtn.removeAttribute("disabled");
-    groupBtn.classList.remove("disabled");
-    groupBtn.setAttribute("aria-disabled", "false");
-    groupBtn.removeAttribute("disabled");
-    hideBtn.classList.remove("disabled");
-    hideBtn.setAttribute("aria-disabled", "false");
-    hideBtn.removeAttribute("disabled");
+    setDuplicateTableButtonsEnabled(closeBtn, groupBtn, hideBtn, true);
   }
   else {
     const tr = document.createElement("tr");
@@ -275,20 +228,12 @@ const setDuplicateTabsTable = (duplicateTabs) => {
     const em = document.createElement("em");
     em.textContent = monitoringPaused
       ? chrome.i18n.getMessage("monitoringPaused")
-      : chrome.i18n.getMessage("noDuplicateTabs") + ".";
+      : `${chrome.i18n.getMessage("noDuplicateTabs")}.`;
     td.appendChild(em);
     tr.appendChild(td);
     tbody.appendChild(tr);
     resizeDuplicateTabsPanel(isUpdate);
-    closeBtn.classList.toggle("disabled", true);
-    closeBtn.setAttribute("aria-disabled", "true");
-    closeBtn.setAttribute("disabled", "");
-    groupBtn.classList.add("disabled");
-    groupBtn.setAttribute("aria-disabled", "true");
-    groupBtn.setAttribute("disabled", "");
-    hideBtn.classList.add("disabled");
-    hideBtn.setAttribute("aria-disabled", "true");
-    hideBtn.setAttribute("disabled", "");
+    setDuplicateTableButtonsEnabled(closeBtn, groupBtn, hideBtn, false);
   }
   hideBtn.dataset.wlCount = String(duplicateTabs ? duplicateTabs.filter(t => t.whitelisted).length : 0);
   if (duplicateTabs) resizeDuplicateTabsPanel(isUpdate);
@@ -325,21 +270,23 @@ const setPanelOption = (details) => {
   }
   else if (storedOption === "whiteList") {
     const el = document.getElementById("whiteList");
-    if (el) { el.value = value; if (isLockedKey) el.disabled = true; }
+    if (el) {
+      el.value = value;
+      if (isLockedKey) el.disabled = true;
+    }
   }
   else if (storedOption === "urlRegexRules" || storedOption === "titleRegexRules") {
     const el = document.getElementById(storedOption);
-    if (el) { el.value = value; if (isLockedKey) el.disabled = true; }
+    if (el) {
+      el.value = value;
+      if (isLockedKey) el.disabled = true;
+    }
   }
   else {
     const el = document.getElementById(storedOption);
     if (typeof (value) === "boolean") {
       if (el) el.checked = value;
-      if (storedOption === "compareWithTitle") {
-        const thresh = document.getElementById("titleSimilarityThreshold");
-        if (thresh) thresh.disabled = !value;
-      }
-      else if (storedOption === "ignorePathPart") updateIgnorePathPartDependents(value);
+      if (storedOption === "ignorePathPart") updateIgnorePathPartDependents(value);
       else if (storedOption === "popupGroupedView") {
         groupedView = value;
         updateGroupButton(value);
@@ -360,6 +307,7 @@ const setPanelOption = (details) => {
       if (storedOption === "onDuplicateTabDetected") changeAutoCloseOptionState(value, resize);
       else if (storedOption === "theme") applyTheme(value);
       else if (storedOption === "scope") updatePrioritizeActiveWindowState(value);
+      else if (storedOption === "titleMatchMode") updateTitleMatchModeDependents(value);
     }
     if (isLockedKey && el) el.disabled = true;
   }
@@ -367,12 +315,18 @@ const setPanelOption = (details) => {
 
 const setPanelOptions = async () => {
   const response = await sendMessage("getStoredOptions");
+  if (!response?.data) {
+    console.error("DTC: getStoredOptions failed");
+    return;
+  }
   const storedOptions = response.data.storedOptions;
   const lockedKeys = response.data.lockedKeys;
   for (const storedOption in storedOptions) {
-    setPanelOption({ storedOption: storedOption, value: storedOptions[storedOption].value, isLockedKey: lockedKeys.includes(storedOption) });
+    setPanelOption({ storedOption, value: storedOptions[storedOption].value, isLockedKey: lockedKeys.includes(storedOption) });
   }
   updateIgnorePathPartDependents(storedOptions.ignorePathPart ? storedOptions.ignorePathPart.value : false);
+  updateTitleMatchModeDependents(storedOptions.titleMatchMode ? storedOptions.titleMatchMode.value : "N");
+  updateFileAccessWarning();
 };
 
 const handleMessage = (message) => {
@@ -382,27 +336,7 @@ const handleMessage = (message) => {
 
 chrome.runtime.onMessage.addListener(handleMessage);
 
-const handleDOMContentLoaded = () => {
+document.addEventListener("DOMContentLoaded", () => {
   initialize();
   loadPopupEvents();
-};
-
-document.addEventListener("DOMContentLoaded", handleDOMContentLoaded);
-
-const localizePopup = (node) => {
-  const attribute = "i18n-content";
-  const elements = node.querySelectorAll(`[${attribute}]`);
-  elements.forEach(element => {
-    const value = element.getAttribute(attribute);
-    element.textContent = chrome.i18n.getMessage(value);
-  });
-
-  node.querySelectorAll("[Title]").forEach(el => {
-    el.setAttribute("Title", chrome.i18n.getMessage(el.getAttribute("Title")));
-  });
-
-  const ariaLabelAttribute = "i18n-aria-label";
-  node.querySelectorAll(`[${ariaLabelAttribute}]`).forEach(el => {
-    el.setAttribute("aria-label", chrome.i18n.getMessage(el.getAttribute(ariaLabelAttribute)));
-  });
-};
+});

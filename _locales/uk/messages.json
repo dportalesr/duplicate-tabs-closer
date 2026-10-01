@@ -47,6 +47,10 @@
     "message": "Зберегти закріплену вкладку",
     "description": "Keep pinned tab"
   },
+  "keepActiveTab": {
+    "message": "Зберігати активну вкладку",
+    "description": "Keep the active tab"
+  },
   "onRemainingTab": {
     "message": "Вкладку, що залишилася...",
     "description": "On remaining tab"
@@ -83,9 +87,21 @@
     "message": "Ігнорувати регістр букв в URL",
     "description": "Ignore case in URL"
   },
-  "compareWithTitle": {
-    "message": "Порівняти заголовки вкладок",
-    "description": "Compare with title"
+  "titleMatchMode": {
+    "message": "Визначати дублікати за",
+    "description": "Title matching mode"
+  },
+  "titleMatchModeN": {
+    "message": "Лише URL",
+    "description": "No title matching"
+  },
+  "titleMatchModeT": {
+    "message": "URL або заголовок збігаються",
+    "description": "Match tabs by URL or by title"
+  },
+  "titleMatchModeU": {
+    "message": "URL та однаковий заголовок",
+    "description": "Tabs with the same URL but different titles are not considered duplicates"
   },
   "titleSimilarityThreshold": {
     "message": "% збіг заголовків",
@@ -95,9 +111,17 @@
     "message": "Правила URL",
     "description": "URL pattern rules"
   },
+  "urlRegexRulesHint": {
+    "message": "Використовуйте * як шаблон або /regex/flags для регулярних виразів",
+    "description": "Hint below URL pattern rules textarea"
+  },
   "titleRegexRules": {
     "message": "Правила заголовків",
     "description": "Title pattern rules"
+  },
+  "titleRegexRulesHint": {
+    "message": "Використовуйте * як шаблон або /regex/flags для регулярних виразів",
+    "description": "Hint below title pattern rules textarea"
   },
   "duplicatetabs": {
     "message": "Дублікати вкладок",
@@ -146,6 +170,10 @@
   "closeGroup": {
     "message": "Закрити групу",
     "description": "Close all duplicate tabs in a group"
+  },
+  "closeTabButton": {
+    "message": "Закрити",
+    "description": "Aria-label for the close button on each duplicate tab row"
   },
   "tabsCount": {
     "message": "$COUNT$ tabs",
@@ -296,5 +324,9 @@
   "whiteListHint": {
     "message": "Використовуйте * як символ підстановки або оберніть у /.../ для регулярного виразу: /^(?!.*google\\.com)/",
     "description": "Hint below the whitelist textarea showing pattern syntax examples"
+  },
+  "fileAccessWarning": {
+    "message": "Попередження: розширення не отримало доступ до локальних URL-адрес file://. Перейдіть на about:addons, відкрийте Duplicate Tabs Closer і перевірте вкладку «Дозволи», щоб увімкнути доступ до файлів.",
+    "description": "Warning shown on Firefox when isAllowedFileSchemeAccess() returns false"
   }
 }

@@ -11,25 +11,32 @@ const generateTabSessionId = () => `dtc-${Date.now().toString(36)}-${Math.random
 
 // Firefox fires onBeforeNavigate twice per navigation (once on URL resolve, once on request start).
 // Track last dispatched URL+timestamp per tab to skip the redundant second call.
-const _lastNavigate = new Map(); // tabId -> { url, ts }
+// tabId -> { url, ts }
+const _lastNavigate = new Map();
 
 // Tabs that existed when DTC initialized — their session IDs are seeded by initializeTabSessionIds.
 // onCreatedTab fires for these tabs too at startup, but they must NOT be marked intentional-duplicate
 // (they are pre-existing tabs, not undo-close restores).
 const _seededTabIds = new Set();
-const _preCreatedTabs = new Set(); // Chrome: before-navigate fired before tab-created (= Duplicate Tab command)
+// Chrome: before-navigate fired before tab-created (= Duplicate Tab command)
+const _preCreatedTabs = new Set();
 
-// eslint-disable-next-line no-unused-vars
+ 
 const ensureInitialized = () => {
-	if (!initPromise) initPromise = initialize().catch(err => { initPromise = null; throw err; });
+	if (!initPromise) initPromise = initialize().catch(err => {
+		initPromise = null;
+		throw err;
+	});
 	return initPromise;
 };
 
 const initialize = async () => {
 	await initializeOptions();
 	await tabsInfo.initialize();
-	if (environment.isFirefox) await registerWithTST();
-	const sessionData = await chrome.storage.session.get(['monitoringPaused', 'startupHandled']);
+	const [, sessionData] = await Promise.all([
+		environment.isFirefox ? registerWithTST() : null,
+		chrome.storage.session.get(["monitoringPaused", "startupHandled"])
+	]);
 	monitoringPaused = sessionData.monitoringPaused || false;
 	setBadgeIcon();
 	if (monitoringPaused) setPausedBadge();
@@ -42,25 +49,32 @@ const initialize = async () => {
 	startupBurst.startedAt = Date.now();
 	startupBurst.timerId = setTimeout(() => {
 		startupBurst.active = false;
-		_seededTabIds.clear(); // all startup onCreatedTab events have now been processed
+		// all startup onCreatedTab events have now been processed
+		_seededTabIds.clear();
 	}, 3000);
 };
 
-// eslint-disable-next-line no-unused-vars
+ 
 const toggleMonitorPause = async () => {
 	monitoringPaused = !monitoringPaused;
 	await chrome.storage.session.set({ monitoringPaused });
 	if (monitoringPaused) {
-		chrome.runtime.sendMessage({ action: "setStoredOption", data: { name: "onDuplicateTabDetected", value: "N" } }).catch(() => {});
+		chrome.runtime.sendMessage({ action: "setStoredOption", data: { name: "onDuplicateTabDetected", value: "N" } }).catch(() => {
+			// ignore: panel may not be open
+		});
 		setPausedBadge();
-		chrome.runtime.sendMessage({ action: "updateDuplicateTabsTable", data: { duplicateTabs: null } }).catch(() => {});
+		chrome.runtime.sendMessage({ action: "updateDuplicateTabsTable", data: { duplicateTabs: null } }).catch(() => {
+			// ignore: panel may not be open
+		});
 	} else {
 		await tabsInfo.initialize();
 		setBadgeIcon();
 		updateBadgeStyle();
 		refreshGlobalDuplicateTabsInfo();
 		// Restore the panel dropdown to the actual stored mode (was visually overridden to "N" on pause).
-		chrome.runtime.sendMessage({ action: "setStoredOption", data: { name: "onDuplicateTabDetected", value: options.autoCloseTab ? "A" : "N" } }).catch(() => {});
+		chrome.runtime.sendMessage({ action: "setStoredOption", data: { name: "onDuplicateTabDetected", value: options.autoCloseTab ? "A" : "N" } }).catch(() => {
+			// ignore: panel may not be open
+		});
 		// initializeTabSessionIds is intentionally not re-called on unpause: tabs created during
 		// the pause have no session-ID tracking, but they are re-seeded as normal tabs by
 		// tabsInfo.initialize() above — the safe fallback (no false intentional-dup risk).
@@ -68,14 +82,15 @@ const toggleMonitorPause = async () => {
 };
 
 const initializeTabSessionIds = async () => {
-	const tabs = await getTabs({ windowType: "normal" });
+	const tabs = await getTabs();
 	if (!tabs) return;
 	await Promise.allSettled(tabs.map(async tab => {
 		_seededTabIds.add(tab.id);
-		const existingId = await browser.sessions.getTabValue(tab.id, 'dtc-tab-id');
+		const existingId = await browser.sessions.getTabValue(tab.id, "dtc-tab-id");
 		const id = existingId || generateTabSessionId();
-		tabsInfo.storeTabSessionId(tab.id, id); // in-memory first — never skipped
-		if (!existingId) await browser.sessions.setTabValue(tab.id, 'dtc-tab-id', id);
+		// in-memory first: no await before this, so the store always runs
+		tabsInfo.storeTabSessionId(tab.id, id);
+		if (!existingId) await browser.sessions.setTabValue(tab.id, "dtc-tab-id", id);
 	}));
 };
 
@@ -88,17 +103,18 @@ const onCreatedTab = async (tab) => {
 		const checkPromise = (async () => {
 			if (!environment.isFirefox) return;
 			try {
-				const existingId = await browser.sessions.getTabValue(tab.id, 'dtc-tab-id');
-				if (existingId !== undefined && tabsInfo.isKnownSessionId(existingId) && !_seededTabIds.has(tab.id)) {
+				const existingId = await browser.sessions.getTabValue(tab.id, "dtc-tab-id");
+				if (typeof existingId !== "undefined" && tabsInfo.isKnownSessionId(existingId) && !_seededTabIds.has(tab.id)) {
 					tabsInfo.setIntentionalDuplicate(tab.id);
 				}
 				const newId = generateTabSessionId();
 				tabsInfo.storeTabSessionId(tab.id, newId);
-				await browser.sessions.setTabValue(tab.id, 'dtc-tab-id', newId);
-			} catch (e) {
-				// session API error — tab will not be marked intentional-duplicate
+				await browser.sessions.setTabValue(tab.id, "dtc-tab-id", newId);
+			} catch {
+				// session API error: tab will not be marked intentional-duplicate
 			} finally {
-				_seededTabIds.delete(tab.id); // clean up — always runs even if sessions API throws
+				// clean up: always runs even if sessions API throws
+				_seededTabIds.delete(tab.id);
 			}
 		})();
 		tabsInfo.setPendingCheck(tab.id, checkPromise);
@@ -119,7 +135,7 @@ const onCreatedTab = async (tab) => {
 		// go through dispatchTabCompletion so duplicates are detected.
 		// The skipBlankTabs option handles user-facing exclusion downstream in worker.js.
 		if (tab.url !== "about:blank") {
-			dispatchTabCompletion(tab, null, { queryComplete: true });
+			dispatchTabCompletion(tab, tab.active ? tab.id : null, { queryComplete: true });
 		}
 	}
 };
@@ -136,18 +152,24 @@ const onBeforeNavigate = async (details) => {
 	if (prev && prev.url === details.url && (Date.now() - prev.ts) < 1000) return;
 	_lastNavigate.set(details.tabId, { url: details.url, ts: Date.now() });
 	if (options.autoCloseTab && !startupBurst.active && !isBlankURL(details.url) && !details.url.startsWith("view-source:")) {
-		if (!tabsInfo.hasTab(details.tabId)) return;
-		if (tabsInfo.isClosingTab(details.tabId)) return;
+		if (!tabsInfo.hasTab(details.tabId)) {
+				return;
+			}
+			if (tabsInfo.isClosingTab(details.tabId)) {
+				return;
+			}
 		if (details.transitionQualifiers &&
 				(details.transitionQualifiers.includes("server_redirect") ||
-				details.transitionQualifiers.includes("client_redirect"))) return;
+				details.transitionQualifiers.includes("client_redirect"))) {
+			return;
+		}
 		const tab = await getTab(details.tabId);
 		if (tab) {
 			tabsInfo.setTab(tab.id, { complete: false });
 			searchForDuplicateTabsToClose(tab, true, details.url);
 		}
-	} else if (!options.autoCloseTab && isBlankURL(details.url) && tabsInfo.hasTab(details.tabId)
-			&& tabsInfo.getStoredUrl(details.tabId) === "about:blank") {
+	} else if (!options.autoCloseTab && isBlankURL(details.url) && tabsInfo.hasTab(details.tabId) &&
+			tabsInfo.getStoredUrl(details.tabId) === "about:blank") {
 		// Manual mode: Firefox creates newtabs as about:blank first, then navigates to about:newtab.
 		// tabs.onUpdated is unreliable for this transition. Update the stored URL and refresh
 		// so the panel detects the newtab as a duplicate without waiting for tabs.onUpdated.
@@ -198,21 +220,30 @@ const onAttached = async (tabId) => {
 	await ensureInitialized();
 	if (monitoringPaused) return;
 	const tab = await getTab(tabId);
-	if (tab) dispatchTabCompletion(tab, null);
+	if (tab) dispatchTabCompletion(tab, tab.active ? tab.id : null);
 };
 
 const onRemovedTab = async (removedTabId, removeInfo) => {
 	await ensureInitialized();
 	tabsInfo.removeTab(removedTabId);
+	_preCreatedTabs.delete(removedTabId);
 	_lastNavigate.delete(removedTabId);
-	if (monitoringPaused) return;
+	_seededTabIds.delete(removedTabId);
+	const needsGlobalRefresh = options.searchInAllWindows && tabsInfo.needsRefresh(removeInfo.windowId);
 	if (removeInfo.isWindowClosing) {
-		if (options.searchInAllWindows && tabsInfo.needsRefresh(removeInfo.windowId)) refreshDuplicateTabsInfo();
+		if (options.searchInAllWindows && tabsInfo.needsRefresh(removeInfo.windowId)) {
+			refreshDuplicateTabsInfo();
+		}
 		tabsInfo.clearDuplicateTabsInfo(removeInfo.windowId);
 		refreshDuplicateTabsInfo.cleanup(removeInfo.windowId);
+		_pendingTriggerTabId.delete(removeInfo.windowId);
 		handleRemainingTab.cleanup(removeInfo.windowId);
 		debouncedBatchClose.cleanup(removeInfo.windowId);
 		updateBadgeStyle();
+	}
+	if (monitoringPaused) return;
+	if (removeInfo.isWindowClosing && needsGlobalRefresh) {
+		refreshDuplicateTabsInfo();
 	}
 	else if (tabsInfo.needsRefresh(removeInfo.windowId)) {
 		refreshDuplicateTabsInfo(removeInfo.windowId);
@@ -238,16 +269,27 @@ const onActivatedTab = async (activeInfo) => {
 // Chrome only — Firefox does not fire tabs.onReplaced (used when a tab is discarded/replaced by a new one).
 const onReplacedTab = async (addedTabId, removedTabId) => {
 	await ensureInitialized();
-	if (monitoringPaused) return;
 	const prevLastComplete = tabsInfo.getLastComplete(removedTabId);
 	tabsInfo.removeTab(removedTabId);
+	_lastNavigate.delete(removedTabId);
+	_preCreatedTabs.delete(removedTabId);
+	_seededTabIds.delete(removedTabId);
+	if (monitoringPaused) return;
 	const tab = await getTab(addedTabId);
+	tabsInfo.setTab(addedTabId, tab && prevLastComplete !== null
+		? { url: tab.url, complete: true, lastComplete: prevLastComplete }
+		: tab ? { url: tab.url } : {});
 	if (tab) {
-		tabsInfo.setTab(addedTabId, prevLastComplete !== null
-			? { url: tab.url, complete: true, lastComplete: prevLastComplete }
-			: { url: tab.url });
-		if (startupBurst.active) { debouncedBatchClose(tab.windowId); return; }
+		if (_pendingTriggerTabId.get(tab.windowId) === removedTabId) {
+			_pendingTriggerTabId.set(tab.windowId, addedTabId);
+		}
+		if (startupBurst.active) {
+				debouncedBatchClose(tab.windowId);
+				return;
+			}
 		await searchForDuplicateTabsToClose(tab);
+	} else {
+		await refreshGlobalDuplicateTabsInfo();
 	}
 };
 
@@ -256,10 +298,12 @@ const onCommittedTab = async (details) => {
 	if (details.frameId !== 0 || details.tabId <= 0) return;
 	await ensureInitialized();
 	const tab = await getTab(details.tabId);
-	if (tab && tab.id > 0) setBadge(tab.windowId, tab.id);
+	if (tab && tab.id > 0) {
+		setBadge(tab.windowId, tab.id);
+	}
 };
 
-const onHistoryStateUpdated = async (details) => {
+const _handleSpaNavigation = async (details) => {
 	await ensureInitialized();
 	if (monitoringPaused) return;
 	if (details.frameId !== 0 || details.tabId === -1) return;
@@ -274,27 +318,7 @@ const onHistoryStateUpdated = async (details) => {
 	if (!tabsInfo.hasUrlChanged(tab)) return;
 	const wasIntentionalDup = tabsInfo.isIntentionalDuplicate(tab.id);
 	if (wasIntentionalDup) tabsInfo.clearIntentionalDuplicate(tab.id);
-	tabsInfo.setTab(tab.id, { url: details.url, complete: true });
-	dispatchTabCompletion(tab, tab.id);
-	if (wasIntentionalDup) refreshDuplicateTabsInfo(tab.windowId);
-};
-
-const onReferenceFragmentUpdated = async (details) => {
-	await ensureInitialized();
-	if (monitoringPaused) return;
-	if (details.frameId !== 0 || details.tabId === -1) return;
-	if (isBlankURL(details.url)) return;
-	if (!tabsInfo.hasTab(details.tabId)) return;
-	if (tabsInfo.isClosingTab(details.tabId)) return;
-	const prev = _lastNavigate.get(details.tabId);
-	if (prev && prev.url === details.url && (Date.now() - prev.ts) < 1000) return;
-	_lastNavigate.set(details.tabId, { url: details.url, ts: Date.now() });
-	const tab = await getTab(details.tabId);
-	if (!tab) return;
-	if (!tabsInfo.hasUrlChanged(tab)) return;
-	const wasIntentionalDup = tabsInfo.isIntentionalDuplicate(tab.id);
-	if (wasIntentionalDup) tabsInfo.clearIntentionalDuplicate(tab.id);
-	tabsInfo.setTab(tab.id, { url: details.url, complete: true });
+	tabsInfo.setTab(tab.id, { url: tab.url, complete: true });
 	dispatchTabCompletion(tab, tab.id);
 	if (wasIntentionalDup) refreshDuplicateTabsInfo(tab.windowId);
 };
@@ -302,11 +326,12 @@ const onReferenceFragmentUpdated = async (details) => {
 const onCommand = async (command) => {
 	await ensureInitialized();
 	if (command === "close-duplicate-tabs") {
-		const windowId = options.searchInAllWindows ? undefined : await getActiveWindowId();
+		let windowId = null;
+		if (!options.searchInAllWindows) windowId = await getActiveWindowId();
 		closeDuplicateTabs(windowId, true);
 	}
-	else if (command == "toggle-close-mode") setStoredOption("onDuplicateTabDetected", options.autoCloseTab ? "N" : "A", false);
-	else if (command == "toggle-monitor-pause") toggleMonitorPause();
+	else if (command === "toggle-close-mode") setStoredOption("onDuplicateTabDetected", options.autoCloseTab ? "N" : "A", false);
+	else if (command === "toggle-monitor-pause") toggleMonitorPause();
 };
 
 // MV3: event listeners must be registered synchronously at top level (no await before this point),
@@ -322,19 +347,24 @@ chrome.storage.onChanged.addListener((changes, area) => {
 	if (monitoringPaused) return;
 	let hasOptionChange = false;
 	for (const key of Object.keys(changes)) {
-		if (key in defaultOptions) { hasOptionChange = true; break; }
+		if (key in defaultOptions) {
+				hasOptionChange = true;
+				break;
+			}
 	}
 	if (!hasOptionChange) return;
 	getStoredOptions().then(current => {
 		setOptions(current.storedOptions);
 		refreshGlobalDuplicateTabsInfo();
+	}).catch(() => {
+		// ignore
 	});
 });
 chrome.tabs.onCreated.addListener(onCreatedTab);
 chrome.webNavigation.onBeforeNavigate.addListener(onBeforeNavigate);
 chrome.webNavigation.onCommitted.addListener(onCommittedTab);
-chrome.webNavigation.onHistoryStateUpdated.addListener(onHistoryStateUpdated);
-chrome.webNavigation.onReferenceFragmentUpdated.addListener(onReferenceFragmentUpdated);
+chrome.webNavigation.onHistoryStateUpdated.addListener(_handleSpaNavigation);
+chrome.webNavigation.onReferenceFragmentUpdated.addListener(_handleSpaNavigation);
 chrome.tabs.onAttached.addListener(onAttached);
 chrome.tabs.onDetached.addListener(onDetachedTab);
 chrome.tabs.onUpdated.addListener(onUpdatedTab);

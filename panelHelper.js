@@ -1,23 +1,16 @@
 "use strict";
 
-// eslint-disable-next-line no-unused-vars
 const getElement = (sel, ctx = document) => ctx.querySelector(sel);
-// eslint-disable-next-line no-unused-vars
 const getElements = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
 
-// eslint-disable-next-line no-unused-vars
 const areSameArrays = (array1, array2) => {
     if (!array1 && !array2) return true;
     if (!array1 || !array2 || array1.length !== array2.length) return false;
-    return array1.every((t, i) => t.id === array2[i].id
-        && t.isRetained === array2[i].isRetained
-        && t.whitelisted === array2[i].whitelisted);
+    return array1.every((t, i) => t.id === array2[i].id &&
+        t.isRetained === array2[i].isRetained &&
+        t.whitelisted === array2[i].whitelisted);
 };
 
-// eslint-disable-next-line no-unused-vars
-const escapeHTML = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
-
-// eslint-disable-next-line no-unused-vars
 const buildTabRow = (duplicateTab, activeWindowId) => {
     const tr = document.createElement("tr");
     tr.setAttribute("tabId", parseInt(duplicateTab.id, 10));
@@ -55,12 +48,14 @@ const buildTabRow = (duplicateTab, activeWindowId) => {
 
     const tdClose = document.createElement("td");
     tdClose.className = "td-close-button";
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "btn-tab-close";
-    btn.setAttribute("aria-label", "Close");
-    btn.textContent = "×";
-    tdClose.appendChild(btn);
+    if (!duplicateTab.isRetained) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn-tab-close";
+        btn.setAttribute("aria-label", chrome.i18n.getMessage("closeTabButton"));
+        btn.textContent = "×";
+        tdClose.appendChild(btn);
+    }
 
     tr.appendChild(tdIcon);
     tr.appendChild(tdTitle);
@@ -68,12 +63,8 @@ const buildTabRow = (duplicateTab, activeWindowId) => {
     return tr;
 };
 
-// eslint-disable-next-line no-unused-vars
-const buildDuplicateTabRows = (duplicateTabs, activeWindowId) => {
-    return duplicateTabs.map(tab => buildTabRow(tab, activeWindowId));
-};
+const buildDuplicateTabRows = (duplicateTabs, activeWindowId) => duplicateTabs.map(tab => buildTabRow(tab, activeWindowId));
 
-// eslint-disable-next-line no-unused-vars
 const buildGroupedDuplicateTabRows = (duplicateTabs, activeWindowId) => {
     const rows = [];
     const groups = new Map();
@@ -84,7 +75,7 @@ const buildGroupedDuplicateTabRows = (duplicateTabs, activeWindowId) => {
     groups.forEach((tabs) => {
         const headerTr = document.createElement("tr");
         headerTr.className = "tr-group-header collapsed";
-        headerTr.dataset.groupTabIds = tabs.map(t => t.id).join(",");
+        headerTr.dataset.groupTabIds = tabs.filter(t => !t.isRetained).map(t => t.id).join(",");
         if (tabs.every(tab => tab.whitelisted)) headerTr.setAttribute("data-whitelisted", "true");
 
         const tdHeader = document.createElement("td");
@@ -136,7 +127,6 @@ const buildGroupedDuplicateTabRows = (duplicateTabs, activeWindowId) => {
     return rows;
 };
 
-// eslint-disable-next-line no-unused-vars
 const applyTheme = (value) => {
     const darkThemes = ["ocean", "charcoal", "purple", "teal", "oled"];
     const lightThemes = ["sage", "rose", "amber", "slate", "violet"];
@@ -146,19 +136,16 @@ const applyTheme = (value) => {
     if (value !== "light") document.documentElement.classList.add(`theme-${value}`);
 };
 
-// eslint-disable-next-line no-unused-vars
 const updateIgnorePathPartDependents = (checked) => {
     document.getElementById("ignoreSearchPart").disabled = checked;
     document.getElementById("ignoreHashPart").disabled = checked;
 };
 
-// eslint-disable-next-line no-unused-vars
 const updatePrioritizeActiveWindowState = (scopeValue) => {
     const el = document.getElementById("prioritizeActiveWindow");
     if (el) el.disabled = scopeValue !== "A" && scopeValue !== "CA";
 };
 
-// eslint-disable-next-line no-unused-vars
 const updateGroupButton = (grouped) => {
     const btn = document.getElementById("groupDuplicateTabsBtn");
     if (!btn) return;
@@ -166,7 +153,6 @@ const updateGroupButton = (grouped) => {
     btn.setAttribute("aria-pressed", String(grouped));
 };
 
-// eslint-disable-next-line no-unused-vars
 const updateHideWhitelistedButton = (hidden) => {
     const btn = document.getElementById("hideWhitelistedTabsBtn");
     if (!btn) return;
@@ -176,7 +162,6 @@ const updateHideWhitelistedButton = (hidden) => {
 };
 
 let highlightBottomScrollShadowTimer = null;
-// eslint-disable-next-line no-unused-vars
 const highlightBottomScrollShadow = () => {
     clearTimeout(highlightBottomScrollShadowTimer);
     const container = document.getElementById("duplicateTabsTableContainer");
@@ -185,24 +170,23 @@ const highlightBottomScrollShadow = () => {
     highlightBottomScrollShadowTimer = setTimeout(() => container.classList.toggle("highlight-scroll-bottom", false), 400);
 };
 
-// eslint-disable-next-line no-unused-vars
 const getHighlightBounds = (textarea) => {
     const cs = window.getComputedStyle(textarea);
     const pt = parseFloat(cs.paddingTop);
     const text = textarea.value;
     const pos = textarea.selectionStart;
-    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
-    const lineEndRaw = text.indexOf('\n', pos);
+    const lineStart = text.lastIndexOf("\n", pos - 1) + 1;
+    const lineEndRaw = text.indexOf("\n", pos);
     const lineEnd = lineEndRaw === -1 ? text.length : lineEndRaw;
     let m = textarea._mirror;
     if (!m) {
-        m = document.createElement('div');
-        m.setAttribute('aria-hidden', 'true');
-        m.style.cssText = 'position:fixed;top:-9999px;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;padding:0;margin:0;border:0;box-sizing:content-box;';
+        m = document.createElement("div");
+        m.setAttribute("aria-hidden", "true");
+        m.style.cssText = "position:fixed;top:-9999px;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;padding:0;margin:0;border:0;box-sizing:content-box;";
         document.body.appendChild(m);
         textarea._mirror = m;
     }
-    m.style.width = (textarea.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) + 'px';
+    m.style.width = `${textarea.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)}px`;
     m.style.font = cs.font;
     m.style.lineHeight = cs.lineHeight;
     let topOffset = 0;
@@ -210,20 +194,108 @@ const getHighlightBounds = (textarea) => {
         m.textContent = text.substring(0, lineStart);
         topOffset = m.scrollHeight;
     }
-    m.textContent = text.substring(lineStart, lineEnd) || ' ';
+    m.textContent = text.substring(lineStart, lineEnd) || " ";
     return { top: pt + topOffset, bottom: pt + topOffset + m.scrollHeight };
 };
 
-// eslint-disable-next-line no-unused-vars
-const saveActiveWindowId = async () => {
-    activeWindowId = await getActiveWindowId();
+const requestCloseDuplicateTabs = (skipWhitelisted) => sendMessage("closeDuplicateTabs", { "windowId": activeWindowId, skipWhitelisted });
+
+const saveOption = (name, value, refresh) => sendMessage("setStoredOption", { name, value, refresh });
+
+const requestGetDuplicateTabs = () => sendMessage("getDuplicateTabs", { "windowId": activeWindowId });
+
+const changeAutoCloseOptionState = (state, resize) => {
+    const el = document.getElementById("onRemainingTabGroup");
+    if (el) el.classList.toggle("hidden", state !== "A");
+    if (resize) resizeDuplicateTabsPanel();
 };
 
-// eslint-disable-next-line no-unused-vars
-const requestCloseDuplicateTabs = (skipWhitelisted) => sendMessage("closeDuplicateTabs", { "windowId": activeWindowId, "skipWhitelisted": skipWhitelisted });
+const setDuplicateTableButtonsEnabled = (closeBtn, groupBtn, hideBtn, enabled) => {
+    [closeBtn, groupBtn, hideBtn].forEach(btn => {
+        btn.classList.toggle("disabled", !enabled);
+        btn.setAttribute("aria-disabled", String(!enabled));
+        if (enabled) btn.removeAttribute("disabled");
+        else btn.setAttribute("disabled", "");
+    });
+};
 
-// eslint-disable-next-line no-unused-vars
-const saveOption = (name, value, refresh) => sendMessage("setStoredOption", { "name": name, "value": value, "refresh": refresh });
+const updatePauseButton = (paused) => {
+    const btn = document.getElementById("pauseMonitorBtn");
+    if (!btn) return;
+    const icon = btn.querySelector("span");
+    btn.classList.toggle("paused", paused);
+    btn.setAttribute("aria-pressed", paused ? "true" : "false");
+    if (paused) {
+        if (icon) icon.className = "fa-solid fa-play fa-lg";
+        btn.setAttribute("aria-label", chrome.i18n.getMessage("resumeMonitoring"));
+        btn.setAttribute("title", chrome.i18n.getMessage("resumeMonitoring"));
+    } else {
+        if (icon) icon.className = "fa-solid fa-pause fa-lg";
+        btn.setAttribute("aria-label", chrome.i18n.getMessage("pauseMonitoring"));
+        btn.setAttribute("title", chrome.i18n.getMessage("pauseMonitoring"));
+    }
+};
 
-// eslint-disable-next-line no-unused-vars
-const requestGetDuplicateTabs = () => sendMessage("getDuplicateTabs", { "windowId": activeWindowId });
+const applyLineHighlight = (textarea) => {
+    const { top, bottom } = getHighlightBounds(textarea);
+    const s = textarea.scrollTop;
+    textarea.style.backgroundImage = `linear-gradient(transparent ${top - s}px, rgba(0, 0, 0, 0.075) ${top - s}px, rgba(0, 0, 0, 0.075) ${bottom - s}px, transparent ${bottom - s}px)`;
+};
+
+const applyPausedStateUI = (paused) => {
+    const sel = document.getElementById("onDuplicateTabDetected");
+    if (sel) sel.disabled = paused;
+    updatePauseButton(paused);
+};
+
+const registerPauseListener = (fn) => {
+    chrome.storage.session.onChanged.addListener((changes) => {
+        if ("monitoringPaused" in changes) fn(changes.monitoringPaused.newValue || false);
+    });
+};
+
+const registerDuplicateTableClickHandler = (table, resizeFn) => {
+    table.addEventListener("click", (e) => {
+        const groupCloseBtn = e.target.closest(".btn-group-close");
+        if (groupCloseBtn) {
+            e.stopPropagation();
+            const headerRow = groupCloseBtn.closest(".tr-group-header");
+            if (!headerRow) return;
+            headerRow.dataset.groupTabIds.split(",").filter(Boolean).map(Number).forEach(id => removeTab(id));
+            return;
+        }
+        const headerRow = e.target.closest(".tr-group-header");
+        if (headerRow) {
+            const isCollapsed = headerRow.classList.toggle("collapsed");
+            let row = headerRow.nextElementSibling;
+            while (row && row.classList.contains("group-row")) {
+                row.classList.toggle("group-collapsed", isCollapsed);
+                row = row.nextElementSibling;
+            }
+            resizeFn(false);
+            return;
+        }
+        const titleCell = e.target.closest(".td-tab-title");
+        if (titleCell) {
+            const row = titleCell.parentElement;
+            const tabId = parseInt(row.getAttribute("tabId"), 10);
+            const windowId = parseInt(row.getAttribute("windowId"), 10);
+            focusTab(tabId, windowId).catch(err => console.error("DTC: focusTab failed:", err));
+        }
+        const closeCell = e.target.closest(".td-close-button");
+        if (closeCell) {
+            const row = closeCell.parentElement;
+            const tabId = parseInt(row.getAttribute("tabId"), 10);
+            removeTab(tabId);
+        }
+    });
+};
+
+const localizePopup = (node = document.documentElement) => {
+    node.querySelectorAll("[i18n-content]").forEach(el => {
+        el.textContent = chrome.i18n.getMessage(el.getAttribute("i18n-content"));
+    });
+    node.querySelectorAll("[i18n-aria-label]").forEach(el => {
+        el.setAttribute("aria-label", chrome.i18n.getMessage(el.getAttribute("i18n-aria-label")));
+    });
+};

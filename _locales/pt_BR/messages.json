@@ -47,6 +47,10 @@
     "message": "Manter a aba fixada",
     "description": "Keep pinned tab"
   },
+  "keepActiveTab": {
+    "message": "Manter a aba ativa",
+    "description": "Keep the active tab"
+  },
   "onRemainingTab": {
     "message": "Na aba restante",
     "description": "On remaining tab"
@@ -83,9 +87,21 @@
     "message": "Ignorar maiúsculas e minúsculas no URL",
     "description": "Ignore case in URL"
   },
-  "compareWithTitle": {
-    "message": "Comparar com o título",
-    "description": "Compare with title"
+  "titleMatchMode": {
+    "message": "Detectar duplicatas por",
+    "description": "Title matching mode"
+  },
+  "titleMatchModeN": {
+    "message": "Apenas URL",
+    "description": "No title matching"
+  },
+  "titleMatchModeT": {
+    "message": "URL ou título coincide",
+    "description": "Match tabs by URL or by title"
+  },
+  "titleMatchModeU": {
+    "message": "URL e título iguais",
+    "description": "Tabs with the same URL but different titles are not considered duplicates"
   },
   "titleSimilarityThreshold": {
     "message": "% similaridade de título",
@@ -95,9 +111,17 @@
     "message": "Regras de padrão de URL",
     "description": "URL pattern rules"
   },
+  "urlRegexRulesHint": {
+    "message": "Use * como curinga, ou /regex/flags para expressões regulares",
+    "description": "Hint below URL pattern rules textarea"
+  },
   "titleRegexRules": {
     "message": "Regras de padrão de título",
     "description": "Title pattern rules"
+  },
+  "titleRegexRulesHint": {
+    "message": "Use * como curinga, ou /regex/flags para expressões regulares",
+    "description": "Hint below title pattern rules textarea"
   },
   "duplicatetabs": {
     "message": "Abas duplicadas",
@@ -146,6 +170,10 @@
   "closeGroup": {
     "message": "Fechar grupo",
     "description": "Close all duplicate tabs in a group"
+  },
+  "closeTabButton": {
+    "message": "Fechar",
+    "description": "Aria-label for the close button on each duplicate tab row"
   },
   "tabsCount": {
     "message": "$COUNT$ tabs",
@@ -296,5 +324,9 @@
   "whiteListHint": {
     "message": "Use * como curinga, ou envolva em /.../ para regex: /^(?!.*google\\.com)/",
     "description": "Hint below the whitelist textarea showing pattern syntax examples"
+  },
+  "fileAccessWarning": {
+    "message": "Aviso: esta extensão não recebeu acesso às URLs file:// locais. Acesse about:addons, abra o Duplicate Tabs Closer e verifique a aba Permissões para habilitar o acesso a arquivos.",
+    "description": "Warning shown on Firefox when isAllowedFileSchemeAccess() returns false"
   }
 }

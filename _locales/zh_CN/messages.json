@@ -47,6 +47,10 @@
     "message": "保留固定的标签页",
     "description": "Keep pinned tab"
   },
+  "keepActiveTab": {
+    "message": "保留活动标签页",
+    "description": "Keep the active tab"
+  },
   "onRemainingTab": {
     "message": "剩余标签页",
     "description": "On remaining tab"
@@ -83,9 +87,21 @@
     "message": "忽略 URL 中的大小写",
     "description": "Ignore case in URL"
   },
-  "compareWithTitle": {
-    "message": "比较依据标签页标题",
-    "description": "Compare with title"
+  "titleMatchMode": {
+    "message": "检测重复标签依据",
+    "description": "Title matching mode"
+  },
+  "titleMatchModeN": {
+    "message": "仅 URL",
+    "description": "No title matching"
+  },
+  "titleMatchModeT": {
+    "message": "URL 或标题匹配",
+    "description": "Match tabs by URL or by title"
+  },
+  "titleMatchModeU": {
+    "message": "URL 匹配且标题相同",
+    "description": "Tabs with the same URL but different titles are not considered duplicates"
   },
   "titleSimilarityThreshold": {
     "message": "% 标题相似度",
@@ -95,9 +111,17 @@
     "message": "URL 匹配规则",
     "description": "URL pattern rules"
   },
+  "urlRegexRulesHint": {
+    "message": "使用 * 作为通配符，或使用 /regex/flags 表示正则表达式",
+    "description": "Hint below URL pattern rules textarea"
+  },
   "titleRegexRules": {
     "message": "标题匹配规则",
     "description": "Title pattern rules"
+  },
+  "titleRegexRulesHint": {
+    "message": "使用 * 作为通配符，或使用 /regex/flags 表示正则表达式",
+    "description": "Hint below title pattern rules textarea"
   },
   "duplicatetabs": {
     "message": "重复标签页",
@@ -146,6 +170,10 @@
   "closeGroup": {
     "message": "关闭分组",
     "description": "Close all duplicate tabs in a group"
+  },
+  "closeTabButton": {
+    "message": "关闭",
+    "description": "Aria-label for the close button on each duplicate tab row"
   },
   "tabsCount": {
     "message": "$COUNT$ tabs",
@@ -296,5 +324,9 @@
   "whiteListHint": {
     "message": "使用 * 作为通配符，或用 /.../ 包裹正则表达式，例如: /^(?!.*google\\.com)/",
     "description": "Hint below the whitelist textarea showing pattern syntax examples"
+  },
+  "fileAccessWarning": {
+    "message": "警告：此扩展程序未获得访问本地 file:// URL 的权限。请前往 about:addons，打开 Duplicate Tabs Closer，并查看「权限」选项卡以启用文件访问。",
+    "description": "Warning shown on Firefox when isAllowedFileSchemeAccess() returns false"
   }
 }

@@ -1,14 +1,13 @@
 
 "use strict";
 
-// eslint-disable-next-line no-unused-vars
+ 
 const wait = timeout => new Promise(resolve => setTimeout(resolve, timeout));
 
-// eslint-disable-next-line no-unused-vars
 const debounce = (func, delay, immediate = true) => {
     const storedArguments = new Map();
     const debouncedFn = (...args) => {
-        const windowId = args[0] ?? 1;
+        const windowId = typeof args[0] !== "undefined" ? args[0] : 1;
         const later = () => {
             const laterArgs = storedArguments.get(windowId);
             if (laterArgs) {
@@ -37,20 +36,20 @@ const debounce = (func, delay, immediate = true) => {
             if (!alreadyQueued) setTimeout(later, delay);
         }
     };
-    debouncedFn.cleanup = (windowId) => { storedArguments.delete(windowId); };
+    debouncedFn.cleanup = (windowId) => {
+        storedArguments.delete(windowId);
+    };
     return debouncedFn;
 };
 
-// eslint-disable-next-line no-unused-vars
 const tabExists = async (tabId) => {
     const tab = await getTab(tabId, true);
     return tab !== null;
 };
 
-// eslint-disable-next-line no-unused-vars
 const isTabComplete = tab => tab.status === "complete" || tab.status === "unloaded";
 
-// eslint-disable-next-line no-unused-vars
+ 
 const getTab = (tabId, silent = false) => new Promise((resolve) => {
     chrome.tabs.get(tabId, tab => {
         if (chrome.runtime.lastError && !silent) console.error("getTab error:", chrome.runtime.lastError.message);
@@ -66,7 +65,6 @@ const getTabs = (queryInfo) => new Promise((resolve) => {
     });
 });
 
-// eslint-disable-next-line no-unused-vars
 const getWindows = () => new Promise((resolve) => {
     chrome.windows.getAll({}, windows => {
         if (chrome.runtime.lastError) console.error("getWindows error:", chrome.runtime.lastError.message);
@@ -85,17 +83,15 @@ const updateWindow = (windowId, updateProperties) => new Promise((resolve, rejec
 });
 
 const getActiveTab = async (windowId) => {
-    const tabs = await getTabs({ windowId: windowId, active: true });
+    const tabs = await getTabs({ windowId, active: true });
     return tabs ? tabs[0] : null;
 };
 
-// eslint-disable-next-line no-unused-vars
 const getActiveTabId = async (windowId) => {
     const activeTab = await getActiveTab(windowId);
     return activeTab ? activeTab.id : null;
 };
 
-// eslint-disable-next-line no-unused-vars
 const reloadTab = (tabId) => new Promise((resolve, reject) => {
     chrome.tabs.reload(tabId, () => {
         if (chrome.runtime.lastError) {
@@ -106,7 +102,6 @@ const reloadTab = (tabId) => new Promise((resolve, reject) => {
     });
 });
 
-// eslint-disable-next-line no-unused-vars
 const getActiveWindowId = () => new Promise((resolve) => {
     chrome.windows.getLastFocused(null, window => {
         if (chrome.runtime.lastError) console.error("getActiveWindowId error:", chrome.runtime.lastError.message);
@@ -128,10 +123,8 @@ const activateWindow = (windowId) => updateWindow(windowId, { focused: true });
 
 const activateTab = (tabId) => updateTab(tabId, { active: true });
 
-// eslint-disable-next-line no-unused-vars
 const focusTab = (tabId, windowId) => Promise.all([activateTab(tabId), activateWindow(windowId)]);
 
-// eslint-disable-next-line no-unused-vars
 const moveTab = (tabId, moveProperties) => new Promise((resolve, reject) => {
     chrome.tabs.move(tabId, moveProperties, () => {
         if (chrome.runtime.lastError) {
@@ -142,7 +135,6 @@ const moveTab = (tabId, moveProperties) => new Promise((resolve, reject) => {
     });
 });
 
-// eslint-disable-next-line no-unused-vars
 const removeTab = (tabId) => new Promise((resolve, reject) => {
     chrome.tabs.remove(tabId, () => {
         if (chrome.runtime.lastError) {
@@ -153,52 +145,38 @@ const removeTab = (tabId) => new Promise((resolve, reject) => {
     });
 });
 
-// eslint-disable-next-line no-unused-vars
-const setIcon = (details) => new Promise((resolve) => {
-    chrome.action.setIcon(details, () => {
-        if (chrome.runtime.lastError) console.error("setIcon error:", chrome.runtime.lastError.message);
-        resolve();
-    });
-});
 
-// eslint-disable-next-line no-unused-vars
-const getTabBadgeText = (tabId) => new Promise((resolve) => {
-    chrome.action.getBadgeText({ tabId: tabId }, badgeText => {
-        if (chrome.runtime.lastError) console.error("getTabBadgeText error:", chrome.runtime.lastError.message);
-        resolve(badgeText);
-    });
-});
-
-
-// eslint-disable-next-line no-unused-vars
 const setTabBadgeText = (tabId, text) => new Promise((resolve) => {
-    if (tabId == null || tabId < 0) {
+    if (tabId === null || typeof tabId === "undefined" || tabId < 0) {
         console.error("setTabBadgeText error: no tabId");
         resolve();
         return;
     }
-    chrome.action.setBadgeText({ tabId: tabId, text: text }, () => {
+    chrome.action.setBadgeText({ tabId, text }, () => {
         if (chrome.runtime.lastError && !chrome.runtime.lastError.message.includes("No tab with id")) console.error("setTabBadgeText error:", chrome.runtime.lastError.message);
         resolve();
     });
 });
 
-// eslint-disable-next-line no-unused-vars
-const setWindowBadgeText = (windowId, text) => browser.action.setBadgeText({ windowId: windowId, text: text }).catch(() => {});
+const setWindowBadgeText = (windowId, text) => browser.action.setBadgeText({ windowId, text }).catch(() => {
+    // ignore: Firefox may not support this in all contexts
+});
 
-// eslint-disable-next-line no-unused-vars
 const setTabBadgeBackgroundColor = (tabId, color) => new Promise((resolve) => {
-    if (tabId == null || tabId < 0) { resolve(); return; }
-    chrome.action.setBadgeBackgroundColor({ tabId: tabId, color: color }, () => {
+    if (tabId === null || typeof tabId === "undefined" || tabId < 0) {
+        resolve();
+        return;
+    }
+    chrome.action.setBadgeBackgroundColor({ tabId, color }, () => {
         if (chrome.runtime.lastError && !chrome.runtime.lastError.message.includes("No tab with id")) console.error("setTabBadgeBackgroundColor error:", chrome.runtime.lastError.message);
         resolve();
     });
 });
 
-// eslint-disable-next-line no-unused-vars
-const setWindowBadgeBackgroundColor = (windowId, color) => browser.action.setBadgeBackgroundColor({ windowId: windowId, color: color }).catch(() => {});
+const setWindowBadgeBackgroundColor = (windowId, color) => browser.action.setBadgeBackgroundColor({ windowId, color }).catch(() => {
+    // ignore: Firefox may not support this in all contexts
+});
 
-// eslint-disable-next-line no-unused-vars
 const getStoredOptions = () => Promise.all([
     new Promise((resolve) => {
         chrome.storage.local.get(null, localOptions => {
@@ -230,7 +208,6 @@ const getStoredOptions = () => Promise.all([
     };
 });
 
-// eslint-disable-next-line no-unused-vars
 const removeStoredOptions = (keys) => new Promise((resolve) => {
     chrome.storage.local.remove(keys, () => {
         if (chrome.runtime.lastError) console.error("removeStoredOptions error:", chrome.runtime.lastError.message);
@@ -238,24 +215,21 @@ const removeStoredOptions = (keys) => new Promise((resolve) => {
     });
 });
 
-// eslint-disable-next-line no-unused-vars
-const saveStoredOptions = async (options) => {
-    return new Promise((resolve) => {
+const saveStoredOptions = (options) => new Promise((resolve) => {
         chrome.storage.local.set(options, () => {
             if (chrome.runtime.lastError) console.error("saveStoredOptions error:", chrome.runtime.lastError.message);
             resolve(Object.assign({}, options));
         });
     });
-};
 
 const _sendMessageOnce = (action, data) => new Promise((resolve, reject) => {
     const CHROME_SEND_MESSAGE_CALLBACK_NO_RESPONSE_MESSAGE = "The message port closed before a response was received.";
-    chrome.runtime.sendMessage({ action: action, data: data }, response => {
+    chrome.runtime.sendMessage({ action, data }, response => {
         if (chrome.runtime.lastError) {
             const msg = chrome.runtime.lastError.message || "";
-            if (msg === CHROME_SEND_MESSAGE_CALLBACK_NO_RESPONSE_MESSAGE
-                    || msg.includes("receiving end does not exist")) {
-                resolve(undefined);
+            if (msg === CHROME_SEND_MESSAGE_CALLBACK_NO_RESPONSE_MESSAGE ||
+                    msg.includes("receiving end does not exist")) {
+                resolve();
             } else {
                 reject(chrome.runtime.lastError);
             }
@@ -266,29 +240,39 @@ const _sendMessageOnce = (action, data) => new Promise((resolve, reject) => {
     });
 });
 
-// eslint-disable-next-line no-unused-vars
 const sendMessage = async (action, data, retries = 3, retryDelay = 300) => {
-    for (let i = 0; i < retries; i++) {
+    for (let i = 0; i < retries; i += 1) {
         const response = await _sendMessageOnce(action, data);
-        if (response !== undefined) return response;
+        if (typeof response !== "undefined") return response;
         if (i < retries - 1) await wait(retryDelay);
     }
-    return undefined;
 };
 
-// eslint-disable-next-line no-unused-vars
+let _dpPrev = new Int32Array(1);
+let _dpCurr = new Int32Array(1);
+
 const titleSimilarity = (a, b) => {
-    const s1 = a.toLowerCase(), s2 = b.toLowerCase();
-    const m = s1.length, n = s2.length;
+    const s1 = a.toLowerCase(),
+s2 = b.toLowerCase();
+    const m = s1.length,
+n = s2.length;
     if (m === 0 && n === 0) return 100;
     if (m === 0 || n === 0) return 0;
-    let prev = Array.from({ length: n + 1 }, (_, i) => i);
-    for (let i = 1; i <= m; i++) {
-        const curr = [i];
-        for (let j = 1; j <= n; j++) {
-            curr[j] = s1[i-1] === s2[j-1] ? prev[j-1] : 1 + Math.min(prev[j], curr[j-1], prev[j-1]);
-        }
-        prev = curr;
+    if (n + 1 > _dpPrev.length) {
+        _dpPrev = new Int32Array(n + 1);
+        _dpCurr = new Int32Array(n + 1);
     }
-    return Math.round((1 - prev[n] / Math.max(m, n)) * 100);
+    let prev = _dpPrev;
+    let curr = _dpCurr;
+    for (let i = 0; i <= n; i += 1) prev[i] = i;
+    for (let i = 1; i <= m; i += 1) {
+        curr[0] = i;
+        for (let j = 1; j <= n; j += 1) {
+            curr[j] = s1[i - 1] === s2[j - 1] ? prev[j - 1] : 1 + Math.min(prev[j], curr[j - 1], prev[j - 1]);
+        }
+        const tmp = prev;
+        prev = curr;
+        curr = tmp;
+    }
+    return Math.round((1 - (prev[n] / Math.max(m, n))) * 100);
 };

@@ -19,6 +19,10 @@ Duplicate Tabs Closer detects and closes duplicate tabs automatically or display
 
 > **Note:** The **Container** scope options are exclusive to Firefox and require the [Multi-Account Containers](https://support.mozilla.org/en-US/kb/containers) feature. They are not available on Chrome, Edge, Opera, Vivaldi, or Brave.
 
+## Tree Style Tab (Firefox)
+
+When [Tree Style Tab](https://addons.mozilla.org/en-US/firefox/addon/tree-style-tab/) (TST) v4.4.0 or later is installed, Duplicate Tabs Closer uses the TST API to preserve a closed duplicate tab's child tabs rather than orphaning them. If TST is not installed, or is older than v4.4.0, the extension falls back to standard tab removal with no loss of other functionality.
+
 ## Accessing Options
 
 The extension offers two configuration interfaces:
@@ -64,9 +68,10 @@ Tabs opened on purpose using the browser's built-in **Duplicate Tab** command ar
 Determines which of two duplicate tabs is kept when one must be closed, and defines which tabs are excluded from detection entirely. Rules are applied in this order:
 
 1. Pinned tab preference (if *Keep pinned tab* is enabled)
-2. HTTPS preference (if *Keep tab with HTTPS* is enabled)
-3. Age-based preference (*Keep older tab* / *Keep newer tab*)
-4. Active window preference (if *Prioritize active window* is enabled and scope covers multiple windows)
+2. Active tab preference (if *Keep the active tab* is enabled)
+3. HTTPS preference (if *Keep tab with HTTPS* is enabled)
+4. Age-based preference (*Keep older tab* / *Keep newer tab*)
+5. Active window preference (if *Prioritize active window* is enabled and scope covers multiple windows)
 
 | Option | Default | Description |
 | --- | --- | --- |
@@ -75,6 +80,7 @@ Determines which of two duplicate tabs is kept when one must be closed, and defi
 | **Keep and reload older tab** | off | Keeps the older tab but reloads it with the newer tab's URL. Useful when the newer URL contains updated content such as a redirect destination. |
 | **Keep tab with HTTPS** | on | When one tab uses HTTP and the other HTTPS for the same URL, the HTTPS tab is kept. Also normalises `http://` to `https://` during URL comparison so the two are treated as duplicates. |
 | **Keep pinned tab** | on | A pinned tab is always kept; the unpinned duplicate is closed instead. |
+| **Keep the active tab** | on | When one of two duplicate tabs in the same window is the currently active (selected) tab, that tab is kept. Only applies to same-window duplicates; cross-window preference is handled by *Prioritize active window*. |
 | **Prioritize active window** | on | When duplicates span multiple windows and the age-based preference would close the tab in the currently focused window, keeps that tab instead. Only applies when **Scope** is set to *All windows* or *Container in all windows*. |
 
 > The first three options (Keep older tab / Keep newer tab / Keep and reload older tab) are mutually exclusive. Only one is active at a time.
@@ -99,6 +105,8 @@ https://docs.google.com/*
 /^(?!.*google\.com)/
 ```
 
+> **Note (Firefox):** On Firefox 153 and later, a warning may appear here if the extension has not been granted access to local `file://` URLs. To resolve it, open `about:addons`, find Duplicate Tabs Closer, and check the **Permissions** tab to enable file access.
+
 ### Matching Rules
 
 Controls how two tabs are compared to determine whether they are duplicates.
@@ -110,8 +118,8 @@ Controls how two tabs are compared to determine whether they are duplicates.
 | **Ignore hash part in URL** | off | Ignores everything after `#` (`page.html#intro` = `page.html#setup`). Has no effect when *Ignore path part* is enabled. |
 | **Ignore query parameters in URL (search part)** | off | Ignores the query string (everything after `?`). Has no effect when *Ignore path part* is enabled. |
 | **Ignore path part in URL (domain only)** | off | Compares only the origin (scheme + domain), ignoring path, query string, and hash. When this is enabled, *Ignore hash part* and *Ignore search part* are redundant. |
-| **Compare with title** | off | Two tabs are also considered duplicates when their page titles match (see *% title similarity* below). Useful for pages that display the same title across different URLs. |
-| **% title similarity** | 100 | Minimum similarity percentage (1–100) for two titles to be considered a match. `100` requires an exact match (case-insensitive). Only active when *Compare with title* is enabled. |
+| **Detect duplicates by** | URL only | Controls how tabs are matched: **URL only** uses URL comparison only (default). **URL match or title match** also closes tabs whose page titles match, even across different URLs: useful for pages that display the same title on different URLs. **URL match and same title** keeps tabs with the same URL but different titles: useful when you rename tabs to distinguish them. |
+| **% title similarity** | 100 | Minimum similarity percentage (1–100) for two titles to be considered a match. `100` requires an exact match (case-insensitive). Only active when *Detect duplicates by* is set to *URL match or title match*. |
 
 #### URL Pattern Rules
 
@@ -119,25 +127,28 @@ A list of URL patterns, one per line. Any two open tabs whose URLs both match th
 
 Useful for grouping all tabs from a single service as duplicates of each other regardless of the specific path.
 
-**Pattern syntax:** `*` matches any sequence of characters. All other characters match literally.
+**Pattern syntax:** `*` matches any sequence of characters. All other characters match literally. For more complex matching, wrap the pattern in `/` slashes to use a regular expression: `/regex/flags`.
 
 ```text
 *://docs.google.com/*
 *://github.com/*/pull/*
+/example\.com\/(threads|t)\//
 ```
 
 #### Title Pattern Rules
 
 Works identically to URL Pattern Rules but is applied to the page title instead of the URL. Any two tabs whose titles both match the same pattern are treated as duplicates.
 
-**Pattern syntax:** `*` matches any sequence of characters. All other characters match literally.
+Only active when *Detect duplicates by* is set to *URL match or title match*.
+
+**Pattern syntax:** `*` matches any sequence of characters. All other characters match literally. Wrap in `/` slashes for regex: `/regex/flags`.
 
 ```text
 * - Gmail
 GitHub - *
 ```
 
-> **Pattern syntax note:** The Whitelist, URL Pattern Rules, and Title Pattern Rules all use the same simple wildcard syntax. The only special character is `*`, which matches any sequence of characters (including none). This is **not** full regular expression syntax. Characters such as `.`, `+`, `?`, `(`, `)` etc. are matched literally, not as regex metacharacters.
+> **Pattern syntax note:** The Whitelist, URL Pattern Rules, and Title Pattern Rules all support the same syntax. Use `*` as a wildcard (matches any sequence of characters). To use a regular expression, wrap the pattern in `/` slashes: `/regex/flags`. Plain patterns treat `.`, `+`, `?`, `(`, `)` etc. as literals, not regex metacharacters.
 
 ### Scope
 
@@ -217,7 +228,8 @@ In the duplicate tabs list, tabs that will be closed show a strikethrough title.
 | Ignore hash part in URL | No |
 | Ignore query parameters in URL (search part) | No |
 | Ignore path part in URL | Yes |
-| Compare with title | Yes |
+| Detect duplicates by | Yes |
+| % title similarity | Yes |
 | URL pattern rules | Yes |
 | Title pattern rules | No |
 

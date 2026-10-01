@@ -5,8 +5,18 @@ const handleMessage = (message, sender, response) => {
     switch (message.action) {
         case "setStoredOption": {
             if (!message.data || !(message.data.name in defaultOptions)) return response({});
-            setStoredOption(message.data.name, message.data.value, message.data.refresh)
-                .then(() => response({})).catch(() => response({}));
+            setStoredOption(message.data.name, message.data.value, message.data.refresh).
+                then(() => response({})).catch(() => response({}));
+            return true;
+        }
+        case "setStoredOptions": {
+            if (!message.data || typeof message.data.options !== "object") return response({});
+            const opts = Object.entries(message.data.options).filter(([name]) => name in defaultOptions);
+            if (!opts.length) return response({});
+            Promise.all(opts.map(([name, value]) => setStoredOption(name, value, false))).
+                then(() => refreshGlobalDuplicateTabsInfo()).
+                then(() => response({})).
+                catch(() => response({}));
             return true;
         }
         case "getStoredOptions": {
@@ -16,7 +26,9 @@ const handleMessage = (message, sender, response) => {
         case "getDuplicateTabs": {
             if (!message.data) return response({});
             if (monitoringPaused) {
-                chrome.runtime.sendMessage({ action: "updateDuplicateTabsTable", data: { duplicateTabs: null } }).catch(() => {});
+                chrome.runtime.sendMessage({ action: "updateDuplicateTabsTable", data: { duplicateTabs: null } }).catch(() => {
+                // ignore: panel may not be open
+            });
             } else {
                 requestDuplicateTabsFromPanel(message.data.windowId);
             }
@@ -41,10 +53,10 @@ const handleMessage = (message, sender, response) => {
 };
 
 const handleExternalMessage = (message, sender, response) => {
-    // Only allow messages from known companion extensions (e.g. dtc-test).
-    // externally_connectable is DEV-only and stripped from production builds,
-    // but this guard provides defense-in-depth if the build strip ever fails.
-    if (!sender || sender.id === chrome.runtime.id) return false;
+    // externally_connectable is DEV-only and stripped from production builds.
+    // This guard is defense-in-depth; restrict manifest-c.json ids to the exact
+    // dtc-test extension ID before any published/sideloaded build.
+    if (!sender || !sender.id) return false;
     return handleMessage(message, sender, response);
 };
 

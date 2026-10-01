@@ -47,6 +47,10 @@
     "message": "保留已釘選的分頁",
     "description": "Keep pinned tab"
   },
+  "keepActiveTab": {
+    "message": "保留使用中的分頁",
+    "description": "Keep the active tab"
+  },
   "onRemainingTab": {
     "message": "剩餘分頁的處理方式",
     "description": "On remaining tab"
@@ -83,9 +87,21 @@
     "message": "忽略網址大小寫",
     "description": "Ignore case in URL"
   },
-  "compareWithTitle": {
-    "message": "比對分頁標題",
-    "description": "Compare with title"
+  "titleMatchMode": {
+    "message": "偵測重複分頁依據",
+    "description": "Title matching mode"
+  },
+  "titleMatchModeN": {
+    "message": "僅 URL",
+    "description": "No title matching"
+  },
+  "titleMatchModeT": {
+    "message": "URL 或標題符合",
+    "description": "Match tabs by URL or by title"
+  },
+  "titleMatchModeU": {
+    "message": "URL 符合且標題相同",
+    "description": "Tabs with the same URL but different titles are not considered duplicates"
   },
   "titleSimilarityThreshold": {
     "message": "% 標題相似度",
@@ -95,9 +111,17 @@
     "message": "URL 比對規則",
     "description": "URL pattern rules"
   },
+  "urlRegexRulesHint": {
+    "message": "使用 * 作為萬用字元，或使用 /regex/flags 表示正規表示式",
+    "description": "Hint below URL pattern rules textarea"
+  },
   "titleRegexRules": {
     "message": "標題比對規則",
     "description": "Title pattern rules"
+  },
+  "titleRegexRulesHint": {
+    "message": "使用 * 作為萬用字元，或使用 /regex/flags 表示正規表示式",
+    "description": "Hint below title pattern rules textarea"
   },
   "duplicatetabs": {
     "message": "重複的分頁",
@@ -146,6 +170,10 @@
   "closeGroup": {
     "message": "關閉群組",
     "description": "Close all duplicate tabs in a group"
+  },
+  "closeTabButton": {
+    "message": "關閉",
+    "description": "Aria-label for the close button on each duplicate tab row"
   },
   "tabsCount": {
     "message": "$COUNT$ tabs",
@@ -296,5 +324,9 @@
   "whiteListHint": {
     "message": "使用 * 作為萬用字元，或用 /.../ 包裹正規表示式，例如: /^(?!.*google\\.com)/",
     "description": "Hint below the whitelist textarea showing pattern syntax examples"
+  },
+  "fileAccessWarning": {
+    "message": "警告：此擴充功能尚未獲得存取本機 file:// URL 的權限。請前往 about:addons，開啟 Duplicate Tabs Closer，並查看「權限」分頁以啟用檔案存取。",
+    "description": "Warning shown on Firefox when isAllowedFileSchemeAccess() returns false"
   }
 }

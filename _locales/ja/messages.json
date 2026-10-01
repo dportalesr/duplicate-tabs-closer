@@ -47,6 +47,10 @@
     "message": "ピン留めされたタブを残す",
     "description": "Keep pinned tab"
   },
+  "keepActiveTab": {
+    "message": "アクティブなタブを保持する",
+    "description": "Keep the active tab"
+  },
   "onRemainingTab": {
     "message": "残されたタブがある場合",
     "description": "On remaining tab"
@@ -83,9 +87,21 @@
     "message": "URLの大文字と小文字を区別しない",
     "description": "Ignore case in URL"
   },
-  "compareWithTitle": {
-    "message": "タブのタイトルを比較する",
-    "description": "Compare with title"
+  "titleMatchMode": {
+    "message": "重複タブの検出方法",
+    "description": "Title matching mode"
+  },
+  "titleMatchModeN": {
+    "message": "URLのみ",
+    "description": "No title matching"
+  },
+  "titleMatchModeT": {
+    "message": "URLまたはタイトルが一致",
+    "description": "Match tabs by URL or by title"
+  },
+  "titleMatchModeU": {
+    "message": "URLが一致かつ同じタイトル",
+    "description": "Tabs with the same URL but different titles are not considered duplicates"
   },
   "titleSimilarityThreshold": {
     "message": "% タイトルの一致率",
@@ -95,9 +111,17 @@
     "message": "URL パターンルール",
     "description": "URL pattern rules"
   },
+  "urlRegexRulesHint": {
+    "message": "ワイルドカードには * を、正規表現には /regex/flags を使用してください",
+    "description": "Hint below URL pattern rules textarea"
+  },
   "titleRegexRules": {
     "message": "タイトルパターンルール",
     "description": "Title pattern rules"
+  },
+  "titleRegexRulesHint": {
+    "message": "ワイルドカードには * を、正規表現には /regex/flags を使用してください",
+    "description": "Hint below title pattern rules textarea"
   },
   "duplicatetabs": {
     "message": "重複したタブ",
@@ -146,6 +170,10 @@
   "closeGroup": {
     "message": "グループを閉じる",
     "description": "Close all duplicate tabs in a group"
+  },
+  "closeTabButton": {
+    "message": "閉じる",
+    "description": "Aria-label for the close button on each duplicate tab row"
   },
   "tabsCount": {
     "message": "$COUNT$ tabs",
@@ -296,5 +324,9 @@
   "whiteListHint": {
     "message": "* はワイルドカード。正規表現は /.../ で囲む例: /^(?!.*google\\.com)/",
     "description": "Hint below the whitelist textarea showing pattern syntax examples"
+  },
+  "fileAccessWarning": {
+    "message": "警告: この拡張機能にローカルの file:// URL へのアクセスが許可されていません。about:addons を開き、Duplicate Tabs Closer の「権限」タブでファイルアクセスを有効にしてください。",
+    "description": "Warning shown on Firefox when isAllowedFileSchemeAccess() returns false"
   }
 }

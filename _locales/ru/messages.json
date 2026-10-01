@@ -47,6 +47,10 @@
     "message": "Сохранить закрепленную вкладку",
     "description": "Keep pinned tab"
   },
+  "keepActiveTab": {
+    "message": "Оставлять активную вкладку",
+    "description": "Keep the active tab"
+  },
   "onRemainingTab": {
     "message": "Оставшуюся вкладку...",
     "description": "On remaining tab"
@@ -83,9 +87,21 @@
     "message": "Игнорировать регистр букв в URL",
     "description": "Ignore case in URL"
   },
-  "compareWithTitle": {
-    "message": "Сравнить заголовки вкладок",
-    "description": "Compare with title"
+  "titleMatchMode": {
+    "message": "Определять дубликаты по",
+    "description": "Title matching mode"
+  },
+  "titleMatchModeN": {
+    "message": "Только URL",
+    "description": "No title matching"
+  },
+  "titleMatchModeT": {
+    "message": "URL или заголовок совпадают",
+    "description": "Match tabs by URL or by title"
+  },
+  "titleMatchModeU": {
+    "message": "URL совпадает и заголовок одинаковый",
+    "description": "Tabs with the same URL but different titles are not considered duplicates"
   },
   "titleSimilarityThreshold": {
     "message": "% совпадение заголовков",
@@ -95,9 +111,17 @@
     "message": "Правила URL",
     "description": "URL pattern rules"
   },
+  "urlRegexRulesHint": {
+    "message": "Используйте * как шаблон или /regex/flags для регулярных выражений",
+    "description": "Hint below URL pattern rules textarea"
+  },
   "titleRegexRules": {
     "message": "Правила заголовков",
     "description": "Title pattern rules"
+  },
+  "titleRegexRulesHint": {
+    "message": "Используйте * как шаблон или /regex/flags для регулярных выражений",
+    "description": "Hint below title pattern rules textarea"
   },
   "duplicatetabs": {
     "message": "Дубликаты вкладок",
@@ -146,6 +170,10 @@
   "closeGroup": {
     "message": "Закрыть группу",
     "description": "Close all duplicate tabs in a group"
+  },
+  "closeTabButton": {
+    "message": "Закрыть",
+    "description": "Aria-label for the close button on each duplicate tab row"
   },
   "tabsCount": {
     "message": "$COUNT$ tabs",
@@ -296,5 +324,9 @@
   "whiteListHint": {
     "message": "Используйте * как подстановочный символ или оберните в /.../ для регулярного выражения: /^(?!.*google\\.com)/",
     "description": "Hint below the whitelist textarea showing pattern syntax examples"
+  },
+  "fileAccessWarning": {
+    "message": "Предупреждение: расширение не получило доступ к локальным URL-адресам file://. Перейдите на about:addons, откройте Duplicate Tabs Closer и проверьте вкладку «Разрешения», чтобы включить доступ к файлам.",
+    "description": "Warning shown on Firefox when isAllowedFileSchemeAccess() returns false"
   }
 }

@@ -22,7 +22,7 @@ const tab = (id, url, overrides = {}) => ({
     ...overrides
 });
 
-const autoClose = () => ({ onDuplicateTabDetected: { value: "A" } });
+const autoClose = () => ({ onDuplicateTabDetected: { value: "A" }, keepActiveTab: { value: false } });
 
 const openInForeground = (browser, newTab) => {
     browser.tabs.forEach(candidate => { candidate.active = false; });

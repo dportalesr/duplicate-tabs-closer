@@ -22,6 +22,9 @@ const defaultOptions = {
     keepPinnedTab: {
         value: true
     },
+    keepActiveTab: {
+        value: true
+    },
     scope: {
         value: "C"
     },
@@ -43,8 +46,8 @@ const defaultOptions = {
     caseInsensitive: {
         value: false
     },
-    compareWithTitle: {
-        value: false
+    titleMatchMode: {
+        value: "N"
     },
     titleSimilarityThreshold: {
         value: 100
@@ -70,7 +73,10 @@ const defaultOptions = {
     ignorePathPart_popup: {
         value: true
     },
-    compareWithTitle_popup: {
+    titleMatchMode_popup: {
+        value: true
+    },
+    titleSimilarityThreshold_popup: {
         value: true
     },
     urlRegexRules_popup: {
@@ -89,15 +95,6 @@ const defaultOptions = {
         value: true
     },
     scopePinned: {
-        value: true
-    },
-    themePinned: {
-        value: true
-    },
-    popupPinned: {
-        value: true
-    },
-    badgePinned: {
         value: true
     },
     whiteList: {
@@ -145,14 +142,13 @@ const setupDefaultOptions = () => {
     return options;
 };
 
-const getEnvironment = () => navigator.userAgent.includes("Firefox") ? "firefox" : "chrome";
+const getEnvironment = () => (navigator.userAgent.includes("Firefox") ? "firefox" : "chrome");
 
 const getNotInReferenceKeys = (referenceKeys, keys) => {
     const setKeys = new Set(keys);
     return Array.from(referenceKeys).filter(key => !setKeys.has(key));
 };
 
-// eslint-disable-next-line no-unused-vars
 const initializeOptions = async () => {
     const options = await getStoredOptions();
     let storedOptions = options.storedOptions;
@@ -169,8 +165,7 @@ const initializeOptions = async () => {
                 await removeStoredOptions(obsoleteKeys);
             }
             const missingKeys = getNotInReferenceKeys(defaultKeys, storedKeys);
-            // eslint-disable-next-line no-return-assign
-            missingKeys.forEach(key => storedOptions[key] = { value: defaultOptions[key].value });
+            missingKeys.forEach(key => (storedOptions[key] = { value: defaultOptions[key].value }));
             const environment = getEnvironment();
             storedOptions.environment.value = environment;
             storedOptions = await saveStoredOptions(storedOptions);
@@ -180,10 +175,8 @@ const initializeOptions = async () => {
     setEnvironment(storedOptions);
 };
 
-// eslint-disable-next-line no-unused-vars
 let _savingLocally = false;
 
-// eslint-disable-next-line no-unused-vars
 const setStoredOption = async (name, value, refresh) => {
     const options = await getStoredOptions();
     const storedOptions = options.storedOptions;
@@ -207,10 +200,12 @@ const setOptions = (storedOptions) => {
     options.keepReloadOlderTab = storedOptions.keepTabBasedOnAge.value === "R";
     options.keepTabWithHttps = storedOptions.keepTabWithHttps.value;
     options.keepPinnedTab = storedOptions.keepPinnedTab.value;
+    options.keepActiveTab = storedOptions.keepActiveTab.value;
     options.ignoreHashPart = storedOptions.ignoreHashPart.value;
     options.ignoreSearchPart = storedOptions.ignoreSearchPart.value;
     options.ignorePathPart = storedOptions.ignorePathPart.value;
-    options.compareWithTitle = storedOptions.compareWithTitle.value;
+    options.compareWithTitle = storedOptions.titleMatchMode.value === "T";
+    options.requireTitleMatch = storedOptions.titleMatchMode.value === "U";
     options.titleSimilarityThreshold = storedOptions.titleSimilarityThreshold.value;
     options.ignore3w = storedOptions.ignore3w.value;
     options.caseInsensitive = storedOptions.caseInsensitive.value;
@@ -245,33 +240,18 @@ const setEnvironment = (storedOptions) => {
     }
 };
 
-// eslint-disable-next-line no-unused-vars
 const isPanelOptionOpen = async () => {
     const contexts = await chrome.runtime.getContexts({});
     const popupUrl = chrome.runtime.getURL("popup/popup.html");
     const optionPageUrl = chrome.runtime.getURL("optionPage/optionPage.html");
-    return contexts.some(ctx =>
-        ctx.contextType === "POPUP" ||
+    return contexts.some(ctx => ctx.contextType === "POPUP" ||
         (ctx.contextType === "TAB" && ctx.documentUrl && (
             ctx.documentUrl.startsWith(popupUrl) ||
             ctx.documentUrl.startsWith(optionPageUrl)
-        ))
-    );
+        )));
 };
 
-// Returns true only if the popup itself is already open, not the options page.
-// Used to avoid opening a second popup when duplicates are detected.
-// eslint-disable-next-line no-unused-vars
-const isPopupOpen = async () => {
-    const contexts = await chrome.runtime.getContexts({});
-    const popupUrl = chrome.runtime.getURL("popup/popup.html");
-    return contexts.some(ctx =>
-        ctx.contextType === "POPUP" ||
-        (ctx.contextType === "TAB" && ctx.documentUrl && ctx.documentUrl.startsWith(popupUrl))
-    );
-};
-
-const escapeRegexChar = (ch) => ch.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+const escapeRegexChar = (ch) => ch.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
 
 const whiteListToPattern = (whiteList) => {
     const MAX_WILDCARDS = 5;
@@ -280,7 +260,11 @@ const whiteListToPattern = (whiteList) => {
     whiteListLines.forEach(whiteListLine => {
         const regexMatch = whiteListLine.match(/^\/(.+)\/([gimsuy]*)$/);
         if (regexMatch) {
-            try { whiteListPatterns.add(new RegExp(regexMatch[1], regexMatch[2])); } catch (_) {}
+            try {
+                whiteListPatterns.add(new RegExp(regexMatch[1], regexMatch[2].replace(/[gy]/g, "")));
+            } catch {
+                // ignore: invalid regex in whitelist rule
+            }
         } else {
             const normalizedLine = whiteListLine.replace(/\/$/, "");
             if ((normalizedLine.match(/\*/g) || []).length > MAX_WILDCARDS) return;
@@ -299,13 +283,23 @@ const whiteListToPattern = (whiteList) => {
 const parsePatternRules = (text) => {
     const MAX_LINE_LENGTH = 200;
     const MAX_WILDCARDS = 5;
-    return text.split("\n")
-        .map(line => line.trim().slice(0, MAX_LINE_LENGTH))
-        .filter(line => line.length > 0)
-        .filter(line => (line.match(/\*/g) || []).length <= MAX_WILDCARDS)
-        .map(line => {
+    const results = [];
+    for (const rawLine of text.split("\n")) {
+        const line = rawLine.trim().slice(0, MAX_LINE_LENGTH);
+        if (!line) continue;
+        const regexMatch = line.match(/^\/(.+)\/([gimsuy]*)$/);
+        if (regexMatch) {
+            try {
+                results.push({ source: line, regex: new RegExp(regexMatch[1], regexMatch[2].replace(/[gy]/g, "")) });
+            } catch {
+                // ignore: invalid regex in pattern rule
+            }
+        } else {
+            if ((line.match(/\*/g) || []).length > MAX_WILDCARDS) continue;
             let pattern = "^";
             for (const ch of line) pattern = ch === "*" ? `${pattern}.*` : pattern + escapeRegexChar(ch);
-            return { source: line, regex: new RegExp(`${pattern}$`) };
-        });
+            results.push({ source: line, regex: new RegExp(`${pattern}$`) });
+        }
+    }
+    return results;
 };

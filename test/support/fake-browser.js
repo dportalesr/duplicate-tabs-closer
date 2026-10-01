@@ -116,7 +116,7 @@ const startBackground = async (browser) => {
         chrome: api,
         browser: api,
         navigator: { userAgent: "Mozilla/5.0 Firefox/156.0" },
-        console: { log() {}, warn() {}, error() {} },
+        console: process.env.DTC_TEST_LOG ? console : { log() {}, warn() {}, error() {} },
         setTimeout: (callback, delay) => setTimeout(callback, delay).unref(),
         clearTimeout,
         URL
