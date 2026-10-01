@@ -29,13 +29,16 @@ const initialize = async () => {
 	await initializeOptions();
 	await tabsInfo.initialize();
 	if (environment.isFirefox) await registerWithTST();
-	const sessionData = await chrome.storage.session.get('monitoringPaused');
+	const sessionData = await chrome.storage.session.get(['monitoringPaused', 'startupHandled']);
 	monitoringPaused = sessionData.monitoringPaused || false;
 	setBadgeIcon();
 	if (monitoringPaused) setPausedBadge();
 	if (environment.isFirefox) await initializeTabSessionIds();
 	if (!monitoringPaused) await refreshGlobalDuplicateTabsInfo();
-	startupBurst.active = true;
+	// The background is suspended when idle and initialize() runs again on every wake-up.
+	// Only the first run of a browser session is a startup; storage.session lasts exactly that long.
+	startupBurst.active = !sessionData.startupHandled;
+	if (startupBurst.active) chrome.storage.session.set({ startupHandled: true });
 	startupBurst.startedAt = Date.now();
 	startupBurst.timerId = setTimeout(() => {
 		startupBurst.active = false;
